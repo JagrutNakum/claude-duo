@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+dist-installer/
+build/
+*.egg-info/
+claude_duo.egg-info/
+
+# Multi-agent coordination and internal trajectories
+.pair-ops/
+.gemini/
+__pycache__/
+*.pyc
+
+# Operating system & editor files
+*.pfx
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

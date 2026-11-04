@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Claude-Duo cross-machine shared quota companion app.">
+  <title>Claude-Duo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="view-panel">
+      <!-- Top bar -->
+      <header class="app-header">
+        <div class="brand">
+          <div class="brand-icon" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true">
+              <rect x="2" y="2" width="60" height="60" rx="14" fill="#d97736"/>
+              <g transform="translate(8 8) scale(2)">
+                <path fill="#ffffff" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"
+                  d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>
+              </g>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">Claude-Duo</div>
+            <div class="brand-subtitle">Shared Claude Pro companion</div>
+          </div>
+        </div>
+        <div class="header-status">
+          <button class="btn btn-primary btn-sm update-ready-btn" id="update-btn" onclick="installUpdate()" style="display: none;" title="Restart to apply update">Restart to update</button>
+          <button class="btn btn-secondary btn-sm" id="nav-usage-btn" onclick="openUsage()" title="View exact token usage facts">Usage</button>
+          <div class="status-badge" id="relay-badge">
+            <span class="dot" id="relay-dot" role="status"></span>
+            <span id="relay-topic">Connecting…</span>
+          </div>
+          <button class="icon-btn" id="open-settings-btn" title="Settings" aria-label="Settings" onclick="openSettings()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+  <!-- 5-hour capacity meter -->
+  <section class="hero-box">
+    <div class="hero-top">
+      <div>
+        <div class="hero-label">5-hour rolling allowance</div>
+        <div class="hero-meta">
+          <span id="reset-countdown">Resets in --</span>
+          <span class="meta-separator">·</span>
+          <span id="reset-clock">--:--</span>
+        </div>
+      </div>
+      <div class="hero-number" id="quota-number">0%</div>
+    </div>
+
+    <div class="progress-track">
+      <div class="progress-fill neutral" id="quota-fill-neutral"></div>
+      <div class="progress-fill you" id="quota-fill-you"></div>
+      <div class="progress-fill peer" id="quota-fill-peer"></div>
+      <div class="progress-tick tick-75" aria-hidden="true"></div>
+      <div class="progress-tick tick-85" aria-hidden="true"></div>
+    </div>
+
+    <div class="progress-breakdown" id="progress-breakdown" aria-label="5-hour usage breakdown">
+      <div class="breakdown-split" id="breakdown-split" style="display: flex; gap: 16px;">
+        <div class="breakdown-item you">
+          <span class="swatch you" aria-hidden="true"></span>
+          <span id="breakdown-you-label">You: 0%</span>
+        </div>
+        <div class="breakdown-item peer">
+          <span class="swatch peer" aria-hidden="true"></span>
+          <span id="breakdown-peer-label">Teammate: 0%</span>
+        </div>
+      </div>
+      <div class="breakdown-unsplit" id="breakdown-unsplit" style="display: none;">
+        <span class="swatch neutral" aria-hidden="true"></span>
+        <span id="breakdown-unsplit-label">Account total · split starts when teammate connects</span>
+      </div>
+      <div class="pace-badge" id="pace-badge" style="display: none; margin-left: auto;">
+        <span id="pace-label"></span>
+      </div>
+    </div>
+
+    <div class="hero-meta">
+      <div class="hero-meta-left" id="hero-meta-status">
+        <span id="relay-status">Updated just now</span>
+        <button id="usage-signin" class="btn btn-secondary btn-sm usage-signin" type="button" style="display: none;">Sign in to Claude Code</button>
+        <span id="collision-alert" class="collision-alert" aria-live="polite">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="alert-icon" aria-hidden="true">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+            <line x1="12" x2="12" y1="9" y2="13"/>
+            <line x1="12" x2="12.01" y1="17" y2="17"/>
+          </svg>
+          <span>Concurrency: both prompting</span>
+        </span>
+      </div>
+      <span id="weekly-ceiling">Weekly allowance: 0%</span>
+    </div>
+  </section>
+
+  <!-- Side-by-side user cards -->
+  <main class="cards-grid">
+    <!-- Local user -->
+    <div class="user-card you">
+      <div class="card-header">
+        <div class="user-title">
+          <span id="local-name">You</span>
+          <span class="user-role">This PC</span>
+        </div>
+        <div class="presence-status" id="local-badge">
+          <span class="dot" id="local-dot" role="status"></span>
+          <span id="local-status">Idle</span>
+        </div>
+      </div>
+      <div class="stat-item">
+        <span class="stat-key"><span class="swatch you" aria-hidden="true"></span>5-hour share</span>
+        <span class="stat-val" id="local-share">Untracked</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-key">Token load</span>
+        <span class="stat-val stat-val-text" id="local-tokens">-</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-key">Activity</span>
+        <span class="stat-val stat-val-text" id="local-activity">-</span>
+      </div>
+    </div>
+
+    <!-- Peer user -->
+    <div class="user-card">
+      <div class="card-header">
+        <div class="user-title">
+          <span id="peer-name">Teammate</span>
+          <span class="user-role">Remote PC</span>
+        </div>
+        <div class="presence-status" id="peer-badge">
+          <span class="dot" id="peer-dot" role="status"></span>
+          <span id="peer-status">Offline</span>
+        </div>
+      </div>
+      <div class="stat-item">
+        <span class="stat-key"><span class="swatch peer" aria-hidden="true"></span>5-hour share</span>
+        <span class="stat-val" id="peer-share">Untracked</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-key">Token load</span>
+        <span class="stat-val stat-val-text" id="peer-tokens">Waiting for connection</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-key">Activity</span>
+        <span class="stat-val stat-val-text" id="peer-activity">Waiting for connection</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Sessions breakdown list -->
+  <div class="sessions-panel" id="sessions-panel" style="display: none;">
+    <div class="sessions-list" id="sessions-list"></div>
+  </div>
+
+  <!-- Bottom actions -->
+  <footer class="bottom-panel">
+    <div class="ping-form">
+      <input type="text" id="ping-input" class="input-box" placeholder="Send quick ping to teammate…" onkeydown="if(event.key==='Enter') sendPing();">
+      <button class="btn btn-primary" onclick="sendPing()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m22 2-7 20-4-9-9-4Z"/>
+          <path d="M22 2 11 13"/>
+        </svg>
+        <span>Send ping</span>
+      </button>
+    </div>
+    <div class="focus-group">
+      <button class="btn btn-priority" id="priority-btn" onclick="togglePriority()">
+        <span id="priority-icon" class="btn-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </span>
+        <span id="priority-text">Request 20m focus</span>
+      </button>
+      <div class="info-tooltip-wrapper">
+        <button type="button" class="icon-btn info-btn" aria-label="About focus request" tabindex="0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 16v-4"/>
+            <path d="M12 8h.01"/>
+          </svg>
+        </button>
+        <div class="info-tooltip" role="tooltip">Advisory courtesy notice. Requests uninterrupted focus time from your teammate. Terminal access is never blocked or restricted.</div>
+      </div>
+    </div>
+  </footer>
+    </div>
+
+    <!-- Usage Facts View -->
+    <div id="usage-view" class="view-panel" style="display: none;">
+      <div class="settings-header">
+        <button type="button" class="btn btn-secondary back-btn" onclick="closeUsage()" title="Return to dashboard (Esc)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m12 19-7-7 7-7"/>
+            <path d="M19 12H5"/>
+          </svg>
+          <span>Dashboard</span>
+        </button>
+        <div class="settings-title">Token Usage Facts</div>
+        <div class="usage-header-meta" style="margin-left: auto;">
+          <span style="font-size: 11px; color: var(--text-muted);">Exact transcripts telemetry from ~/.claude-duo/usage.db</span>
+        </div>
+      </div>
+
+      <div class="usage-body" id="usage-body">
+        <!-- 1. Window Totals -->
+        <section class="usage-section">
+          <div class="usage-section-title">This 5-hour window</div>
+          <div class="usage-metrics-grid" id="usage-window-grid"></div>
+        </section>
+
+        <!-- 2. Sessions in window -->
+        <section class="usage-section">
+          <div class="usage-section-title">Active sessions in window</div>
+          <div class="usage-table-card">
+            <div class="usage-table-header sessions-header">
+              <span class="col-title">Session / Project</span>
+              <span class="col-model">Model &amp; Effort</span>
+              <span class="col-output">Output</span>
+              <span class="col-cache">Cache Reads</span>
+              <span class="col-cost">Share of PC</span>
+            </div>
+            <div id="usage-sessions-list" class="usage-table-body"></div>
+          </div>
+        </section>
+
+        <!-- 3. By Model -->
+        <section class="usage-section">
+          <div class="usage-section-title">By Model (Window)</div>
+          <div class="usage-table-card">
+            <div class="usage-table-header models-header">
+              <span class="col-model-name">Model</span>
+              <span class="col-model-turns">Turns</span>
+              <span class="col-model-in">Input</span>
+              <span class="col-model-out">Output (Thinking)</span>
+              <span class="col-model-cw">Cache Write</span>
+              <span class="col-model-cr">Cache Read</span>
+            </div>
+            <div id="usage-models-list" class="usage-table-body"></div>
+          </div>
+        </section>
+
+        <!-- 4. Historical Totals -->
+        <section class="usage-section">
+          <div class="usage-section-title">Totals by Period</div>
+          <div class="usage-periods-grid" id="usage-periods-grid"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="settings-view" class="view-panel" style="display: none;">
+      <div class="settings-header">
+        <button type="button" class="btn btn-secondary back-btn" onclick="closeSettings()" title="Return to dashboard (Esc)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m12 19-7-7 7-7"/>
+            <path d="M19 12H5"/>
+          </svg>
+          <span>Dashboard</span>
+        </button>
+        <div class="settings-title">Settings</div>
+      </div>
+
+      <div class="settings-layout">
+        <nav class="settings-sidebar" aria-label="Settings navigation">
+          <button type="button" class="sidebar-tab active" data-tab="general" onclick="switchSettingsTab('general')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="21" x2="14" y1="4" y2="4"/>
+              <line x1="10" x2="3" y1="4" y2="4"/>
+              <line x1="21" x2="12" y1="12" y2="12"/>
+              <line x1="8" x2="3" y1="12" y2="12"/>
+              <line x1="21" x2="16" y1="20" y2="20"/>
+              <line x1="12" x2="3" y1="20" y2="20"/>
+              <line x1="14" x2="14" y1="2" y2="6"/>
+              <line x1="8" x2="8" y1="10" y2="14"/>
+              <line x1="16" x2="16" y1="18" y2="22"/>
+            </svg>
+            <span>General</span>
+          </button>
+          <button type="button" class="sidebar-tab" data-tab="notifications" onclick="switchSettingsTab('notifications')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+            </svg>
+            <span>Notifications</span>
+          </button>
+          <button type="button" class="sidebar-tab" data-tab="focus" onclick="switchSettingsTab('focus')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Focus</span>
+          </button>
+          <button type="button" class="sidebar-tab" data-tab="connection" onclick="switchSettingsTab('connection')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/>
+              <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/>
+              <circle cx="12" cy="12" r="2"/>
+              <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/>
+              <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/>
+            </svg>
+            <span>Connection</span>
+          </button>
+          <button type="button" class="sidebar-tab" data-tab="about" onclick="switchSettingsTab('about')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4"/>
+              <path d="M12 8h.01"/>
+            </svg>
+            <span>About</span>
+          </button>
+        </nav>
+
+        <div class="settings-content">
+          <!-- General Pane -->
+          <div class="settings-pane" id="pane-general">
+            <div class="pane-title">General preferences</div>
+            <div class="toggle-list">
+              <div class="toggle-row">
+                <div class="toggle-label">
+                  <div class="toggle-title">Close to tray</div>
+                  <div class="toggle-desc">Closing the window keeps Claude-Duo running in the tray. Off means Close quits.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="set-gen-closeToTray" onchange="saveGeneralField('closeToTray', this.checked)">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+
+              <div class="toggle-row">
+                <div class="toggle-label">
+                  <div class="toggle-title">Start with Windows</div>
+                  <div class="toggle-desc" id="hint-startWithWindows">Launch automatically when Windows starts.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="set-gen-startWithWindows" onchange="saveGeneralField('startWithWindows', this.checked)">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+
+              <div class="toggle-row">
+                <div class="toggle-label">
+                  <div class="toggle-title">Start hidden</div>
+                  <div class="toggle-desc">Start minimized to tray on every launch.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="set-gen-startHidden" onchange="saveGeneralField('startHidden', this.checked)">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+
+              <div class="toggle-row">
+                <div class="toggle-label">
+                  <div class="toggle-title">Always on top</div>
+                  <div class="toggle-desc">Keep window above other active application windows.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="set-gen-alwaysOnTop" onchange="saveGeneralField('alwaysOnTop', this.checked)">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notifications Pane -->
+          <div class="settings-pane" id="pane-notifications" style="display: none;">
+            <div class="pane-title">Desktop notifications</div>
+            <div class="toggle-list">
+              <div class="toggle-row">
+                <div class="toggle-label">
+                  <div class="toggle-title">5-hour quota alert</div>
+                  <div class="toggle-desc">Notify when capacity reaches limit threshold.</div>
+                </div>
+                <div class="row-controls">
+                  <input type="number" id="set-notif-quotaAlertPct" class="stepper-input" min="50" max="95" step="5" value="85" onchange="saveNotifAlertPct(this.value)">
+                  <span class="input-suffix">%</span>
+                  <label class="switch">
+                    <input type="checkbox" id="set-notif-quotaAlert" onchange="saveNotifField('quotaAlert', this.checked)">
+                    <span class="switch-track"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="field-error" id="err-quotaAlertPct"></div>
+
+              <div class="toggle-row">
+                <div class="toggle-label">
+                  <div class="toggle-title">5-hour reset notification</div>
+                  <div class="toggle-desc">Notify when rolling allowance resets.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="set-notif-limitReset" onchange="saveNotifField('limitReset', this.checked)">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+
+              <div class="toggle-row">
+                <div class="toggle-label">
+                  <div class="toggle-title">Teammate pings</div>
+                  <div class="toggle-desc">Notify when your teammate sends a ping.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="set-notif-ping" onchange="saveNotifField('ping', this.checked)">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+
+              <div class="toggle-row">
+                <div class="toggle-label">
+                  <div class="toggle-title">Focus requests</div>
+                  <div class="toggle-desc">Notify when priority focus is requested or released.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="set-notif-focus" onchange="saveNotifField('focus', this.checked)">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+
+              <div class="toggle-row">
+                <div class="toggle-label">
+                  <div class="toggle-title">Notification sound</div>
+                  <div class="toggle-desc">Play audio chime on desktop notifications.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="set-notif-sound" onchange="saveNotifField('sound', this.checked)">
+                  <span class="switch-track"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Focus Pane -->
+          <div class="settings-pane" id="pane-focus" style="display: none;">
+            <div class="pane-title">Focus requests</div>
+            <div class="pane-desc">Choose the default duration when requesting priority focus.</div>
+            <div class="form-group" style="margin-top: 16px;">
+              <div class="form-label">Duration</div>
+              <div class="segmented-control" id="focus-segmented">
+                <button type="button" class="segment-btn" data-minutes="10" onclick="saveFocusMinutes(10)">10m</button>
+                <button type="button" class="segment-btn active" data-minutes="20" onclick="saveFocusMinutes(20)">20m</button>
+                <button type="button" class="segment-btn" data-minutes="30" onclick="saveFocusMinutes(30)">30m</button>
+                <button type="button" class="segment-btn" data-minutes="60" onclick="saveFocusMinutes(60)">60m</button>
+              </div>
+              <div class="field-hint" style="margin-top: 8px;">The dashboard button will request this duration. Advisory only, terminal access is never blocked.</div>
+              <div class="field-error" id="err-minutes"></div>
+            </div>
+          </div>
+
+          <!-- Connection Pane -->
+          <div class="settings-pane" id="pane-connection" style="display: none;">
+            <div class="pane-title">Connection & sync</div>
+            <form onsubmit="event.preventDefault(); saveConnection();">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="conn-userName">Your name</label>
+                  <input type="text" id="conn-userName" class="input-box" placeholder="e.g. Alice" autocomplete="off">
+                  <div class="field-error" id="err-userName"></div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="conn-peerName">Teammate name</label>
+                  <input type="text" id="conn-peerName" class="input-box" placeholder="e.g. Bob" autocomplete="off">
+                  <div class="field-error" id="err-peerName"></div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="conn-topic">Relay topic</label>
+                  <input type="text" id="conn-topic" class="input-box" placeholder="e.g. duo-team-alpha" autocomplete="off">
+                  <div class="field-error" id="err-topic"></div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="conn-server">Relay server URL</label>
+                  <input type="text" id="conn-server" class="input-box" placeholder="https://ntfy.sh" autocomplete="off">
+                  <div class="field-error" id="err-server"></div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <div class="label-with-badge">
+                  <label class="form-label" for="conn-passphrase">E2EE passphrase</label>
+                  <span class="badge" id="passphrase-status-badge">Set</span>
+                </div>
+                <div class="input-with-action">
+                  <input type="password" id="conn-passphrase" class="input-box" placeholder="Leave empty to keep current passphrase" autocomplete="off">
+                  <button type="button" class="pass-toggle-btn" id="toggle-passphrase-btn" onclick="togglePassphraseVisibility()" aria-label="Toggle passphrase visibility" title="Show/hide passphrase" tabindex="0">
+                    <span id="pass-eye-icon">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    </span>
+                  </button>
+                </div>
+                <div class="field-error" id="err-passphrase"></div>
+              </div>
+
+              <div class="alert-box warning" id="passphrase-warning" style="display: none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="alert-icon" aria-hidden="true">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                  <line x1="12" x2="12" y1="9" y2="13"/>
+                  <line x1="12" x2="12.01" y1="17" y2="17"/>
+                </svg>
+                <span>Anyone who knows your topic can read status updates. Set the same passphrase on both PCs.</span>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="save-conn-btn">
+                  <span>Save connection</span>
+                </button>
+                <button type="button" class="btn btn-secondary" id="test-conn-btn" onclick="testConnection()">
+                  <span>Test connection</span>
+                </button>
+                <span class="test-result" id="test-conn-result"></span>
+              </div>
+              <div class="field-error" id="err-_form"></div>
+              <div class="section-note">Both PCs must use the same topic, server and passphrase.</div>
+            </form>
+          </div>
+
+          <!-- About Pane -->
+          <div class="settings-pane" id="pane-about" style="display: none;">
+            <div class="pane-title">System & diagnostics</div>
+            <div class="info-table">
+              <div class="info-row">
+                <span class="info-key">Claude Code account</span>
+                <span class="info-val" id="info-account">-</span>
+              </div>
+              <div class="field-hint" style="margin-top: -4px;">Must be signed into the same Anthropic account on both PCs.</div>
+
+              <div class="info-row" style="margin-top: 8px;">
+                <span class="info-key">Config path</span>
+                <div class="info-val-group">
+                  <span class="info-val mono" id="info-config-path">-</span>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="revealConfig()">Show file</button>
+                </div>
+              </div>
+
+              <div class="info-row">
+                <span class="info-key">Application version</span>
+                <span class="info-val mono" id="info-version">Claude-Duo 1.0.0</span>
+              </div>
+
+              <div class="info-row">
+                <span class="info-key">Relay status</span>
+                <span class="info-val mono" id="info-relay">-</span>
+              </div>
+
+              <div class="info-row">
+                <span class="info-key">5-hour quota source</span>
+                <span class="info-val" id="info-quota-source">-</span>
+              </div>
+            </div>
+
+            <div class="alert-box warning" id="hook-warning" style="display: none; margin-top: 16px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="alert-icon" aria-hidden="true">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                <line x1="12" x2="12" y1="9" y2="13"/>
+                <line x1="12" x2="12.01" y1="17" y2="17"/>
+              </svg>
+              <span>Another status line is configured in Claude Code, so Claude-Duo cannot read quota on this PC.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

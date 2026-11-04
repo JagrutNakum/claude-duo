@@ -1,0 +1,51 @@
+{
+  "name": "claude-duo",
+  "version": "1.0.0",
+  "description": "> **Real-time usage attribution, 5-hour rolling quota monitoring, and cross-machine alerts for two people sharing a Claude account across the internet.**",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "package": "npx --yes @electron/packager@18.3.6 . Claude-Duo --platform=win32 --arch=x64 --icon=assets/icon.ico --out=dist --overwrite --ignore=^/dist --ignore=^/\\.pair-ops --ignore=^/claude_duo --ignore=^/docs --ignore=^/server --ignore=__pycache__ --ignore=\\.py$ --ignore=^/run\\. --ignore=^/Launch- --ignore=^/Simulate- --ignore=^/simulate_",
+    "build:installer": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.claudeduo.app",
+    "productName": "Claude-Duo",
+    "publish": {
+      "provider": "github",
+      "owner": "JagrutNakum",
+      "repo": "claude-duo",
+      "releaseType": "release"
+    },
+    "directories": {
+      "output": "dist-installer"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Claude-Duo"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ]
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^45.2.1"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  }
+}

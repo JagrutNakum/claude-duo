@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude-Duo • Shared Usage & Quota Tracker</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card-bg: #181b24;
+      --border: #282d3d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #da7756;
+      --accent-hover: #c46445;
+      --green: #238636;
+      --green-light: #2ea043;
+      --amber: #d29922;
+      --red: #f85149;
+      --blue: #58a6ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+      padding: 24px;
+      user-select: none;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .title-area { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #da7756, #b04e30);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 20px;
+      color: white;
+    }
+    .title { font-size: 20px; font-weight: 700; }
+    .subtitle { font-size: 12px; color: var(--text-muted); }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      background: #1f2430;
+      border: 1px solid var(--border);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    .btn {
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #21262d;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn:hover { background: #30363d; border-color: #8b949e; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+    /* Quota Section */
+    .quota-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .quota-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .progress-track {
+      width: 100%;
+      height: 14px;
+      background: #252a38;
+      border-radius: 7px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--green-light);
+      transition: width 0.4s ease, background 0.3s;
+    }
+    .quota-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .concurrency-alert {
+      display: none;
+      margin-top: 14px;
+      background: rgba(248, 81, 73, 0.15);
+      border: 1px solid var(--red);
+      color: #ff7b72;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* Cards Grid */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .user-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      position: relative;
+    }
+    .user-card.you {
+      border-color: rgba(218, 119, 86, 0.4);
+    }
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .user-name { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .status-pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .pill-active { background: rgba(46, 160, 67, 0.2); color: #3fb950; border: 1px solid rgba(46, 160, 67, 0.4); }
+    .pill-idle { background: rgba(139, 148, 158, 0.2); color: #8b949e; border: 1px solid rgba(139, 148, 158, 0.3); }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(40, 45, 61, 0.6);
+      font-size: 13px;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: var(--text-muted); }
+    .stat-val { font-weight: 600; }
+
+    /* Ping Bar */
+    .ping-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .ping-input {
+      flex: 1;
+      padding: 10px 14px;
+      background: #0f1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+    .ping-input:focus { border-color: var(--accent); }
+
+    /* Activity Feed */
+    .feed-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .feed-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; justify-content: space-between; }
+    .feed-list { list-style: none; max-height: 180px; overflow-y: auto; }
+    .feed-item {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(40, 45, 61, 0.6);
+      font-size: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-time { color: var(--text-muted); min-width: 65px; }
+    .feed-text { flex: 1; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(2px);
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .modal {
+      background: #181b24;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 440px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .form-control {
+      width: 100%;
+      padding: 9px 12px;
+      background: #0f1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="title-area">
+      <div class="logo">⚡</div>
+      <div>
+        <div class="title">Claude-Duo</div>
+        <div class="subtitle">Shared Claude Monitor & Windows Alert System</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="badge">
+        <span class="dot" id="channel-dot"></span>
+        <span id="channel-label">Connected</span>
+      </div>
+      <button class="btn" onclick="testAlert()">🔔 Test Alert</button>
+      <button class="btn" onclick="openSettings()">⚙️ Settings</button>
+      <button class="btn" onclick="quitApp()" style="color: #ff7b72;" title="Stop monitoring and close background server">✖ Quit</button>
+    </div>
+  </div>
+
+  <!-- Shared 5-Hour Quota Meter -->
+  <div class="quota-box">
+    <div class="quota-header">
+      <span style="font-weight: 600;">Rolling 5-Hour Shared Quota</span>
+      <span id="quota-pct-label" style="font-weight: 700;">0.0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-bar" id="quota-progress-bar"></div>
+    </div>
+    <div class="quota-meta">
+      <span id="quota-tokens-meta">0 / 600,000 tokens</span>
+      <span>Window: Last 5 hours</span>
+    </div>
+    <div class="concurrency-alert" id="concurrency-banner">
+      ⚡ <b>Concurrency Alert:</b> Both you and your teammate are querying Claude right now! Limits deplete twice as fast.
+    </div>
+  </div>
+
+  <!-- Side-by-Side Comparison -->
+  <div class="cards-grid">
+    <!-- Local User Card -->
+    <div class="user-card you">
+      <div class="card-title-row">
+        <div class="user-name">
+          <span id="local-name-label">You</span>
+          <span style="font-size: 12px; font-weight: normal; color: var(--text-muted);">(This PC)</span>
+        </div>
+        <span class="status-pill pill-idle" id="local-status-pill">Idle</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Last Activity</span>
+        <span class="stat-val" id="local-last-active">-</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Rolling 5h Tokens</span>
+        <span class="stat-val" id="local-5h-tokens">0 (0%)</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">5h Turn Count</span>
+        <span class="stat-val" id="local-5h-turns">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Today Total Tokens</span>
+        <span class="stat-val" id="local-today-tokens">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Today Est. Cost</span>
+        <span class="stat-val" id="local-today-cost">$0.0000</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Recent Model</span>
+        <span class="stat-val" id="local-model">-</span>
+      </div>
+    </div>
+
+    <!-- Peer Card -->
+    <div class="user-card">
+      <div class="card-title-row">
+        <div class="user-name">
+          <span id="peer-name-label">Teammate</span>
+          <span style="font-size: 12px; font-weight: normal; color: var(--text-muted);">(Remote PC)</span>
+        </div>
+        <span class="status-pill pill-idle" id="peer-status-pill">Idle</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Last Activity</span>
+        <span class="stat-val" id="peer-last-active">-</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Rolling 5h Tokens</span>
+        <span class="stat-val" id="peer-5h-tokens">0 (0%)</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">5h Turn Count</span>
+        <span class="stat-val" id="peer-5h-turns">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Today Total Tokens</span>
+        <span class="stat-val" id="peer-today-tokens">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Today Est. Cost</span>
+        <span class="stat-val" id="peer-today-cost">$0.0000</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Recent Model</span>
+        <span class="stat-val" id="peer-model">-</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Ping Section -->
+  <div class="ping-box">
+    <input type="text" id="ping-text" class="ping-input" placeholder="Type a message to ping your teammate's Windows screen..." onkeydown="if(event.key==='Enter') sendPing();">
+    <button class="btn btn-primary" onclick="sendPing()">💬 Send Ping</button>
+  </div>
+
+  <!-- Activity & Alert Feed -->
+  <div class="feed-box">
+    <div class="feed-title">
+      <span>Activity & Alerts Feed</span>
+      <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">Live Windows toast sync</span>
+    </div>
+    <ul class="feed-list" id="feed-list">
+      <li class="feed-item"><span class="feed-time">Just now</span><span class="feed-text">Claude-Duo monitoring started.</span></li>
+    </ul>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal">
+      <div class="modal-title">Connection & Pair Settings</div>
+      <div class="form-group">
+        <label class="form-label">Your Alias / Name</label>
+        <input type="text" id="cfg-user-name" class="form-control" placeholder="e.g. Alice">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Colleague's Alias / Name</label>
+        <input type="text" id="cfg-peer-name" class="form-control" placeholder="e.g. Alex">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Shared Pair Topic (ntfy.sh)</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="cfg-topic" class="form-control" placeholder="e.g. claude-duo-team-xyz">
+          <button class="btn" type="button" onclick="copyTopic()">Copy</button>
+        </div>
+        <small style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">
+          Both machines must have the EXACT same topic to connect.
+        </small>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeSettings()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSettings()">Save & Reconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentConfig = {};
+
+    function formatRelative(epoch) {
+      if (!epoch) return "Never";
+      const diff = Math.floor(Date.now() / 1000 - epoch);
+      if (diff < 60) return diff + "s ago";
+      if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+      if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+      return Math.floor(diff / 86400) + "d ago";
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch("/api/status");
+        if (!res.ok) return;
+        const data = await res.json();
+        updateUI(data);
+      } catch (err) {
+        console.error("Fetch error:", err);
+      }
+    }
+
+    function updateUI(data) {
+      const split = data.split || {};
+      const local = split.local || {};
+      const peer = split.peer || {};
+
+      // Names
+      document.getElementById("local-name-label").innerText = local.name || "You";
+      document.getElementById("peer-name-label").innerText = peer.name || "Teammate";
+
+      // Quota Bar
+      const quotaPct = split.combined_5h_quota_pct || 0;
+      const bar = document.getElementById("quota-progress-bar");
+      bar.style.width = Math.min(quotaPct, 100) + "%";
+      document.getElementById("quota-pct-label").innerText = quotaPct.toFixed(1) + "%";
+
+      if (quotaPct >= 90) bar.style.background = "var(--red)";
+      else if (quotaPct >= 70) bar.style.background = "var(--amber)";
+      else bar.style.background = "var(--green-light)";
+
+      const totalTokens = (split.combined_5h_tokens || 0).toLocaleString();
+      const limitTokens = (data.limit_tokens || 600000).toLocaleString();
+      document.getElementById("quota-tokens-meta").innerText = `${totalTokens} / ${limitTokens} tokens`;
+
+      // Concurrency
+      const banner = document.getElementById("concurrency-banner");
+      banner.style.display = split.is_concurrent ? "block" : "none";
+
+      // Local & Peer Stats
+      const peerJoined = Boolean(split.peer_joined);
+      updateCard("local", local, data.local_summary, true);
+      updateCard("peer", peer, data.peer_summary, peerJoined);
+
+      // Channel Info
+      document.getElementById("channel-label").innerText = data.channel_topic ? `ntfy: ${data.channel_topic}` : "Connected";
+
+      // Events
+      if (data.events && data.events.length > 0) {
+        const feed = document.getElementById("feed-list");
+        feed.innerHTML = "";
+        data.events.slice().reverse().forEach(ev => {
+          const li = document.createElement("li");
+          li.className = "feed-item";
+          const timeStr = new Date(ev.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          li.innerHTML = `<span class="feed-time">${timeStr}</span><span class="feed-text"><b>${ev.title}:</b> ${ev.message}</span>`;
+          feed.appendChild(li);
+        });
+      }
+    }
+
+    function updateCard(prefix, userObj, summaryObj, peerJoined) {
+      summaryObj = summaryObj || {};
+      const pill = document.getElementById(`${prefix}-status-pill`);
+
+      if (prefix === "peer" && !peerJoined) {
+        pill.className = "status-pill pill-idle";
+        pill.innerText = "Not Joined";
+        document.getElementById("peer-last-active").innerText = "Waiting for teammate to connect";
+        document.getElementById("peer-5h-tokens").innerText = "0 (0%)";
+        document.getElementById("peer-5h-turns").innerText = "0";
+        document.getElementById("peer-today-tokens").innerText = "0";
+        document.getElementById("peer-today-cost").innerText = "$0.0000";
+        document.getElementById("peer-model").innerText = "-";
+        return;
+      }
+
+      if (userObj.is_active) {
+        pill.className = "status-pill pill-active";
+        pill.innerText = "Active";
+      } else {
+        pill.className = "status-pill pill-idle";
+        pill.innerText = "Idle";
+      }
+
+      document.getElementById(`${prefix}-last-active`).innerText = formatRelative(summaryObj.last_active_ts);
+      const tok5h = (userObj.tokens_5h || 0).toLocaleString();
+      const share = userObj.share_5h_pct || 0;
+      document.getElementById(`${prefix}-5h-tokens`).innerText = `${tok5h} (${share}%)`;
+      document.getElementById(`${prefix}-5h-turns`).innerText = summaryObj.turns_5h || 0;
+      document.getElementById(`${prefix}-today-tokens`).innerText = (userObj.tokens_today || 0).toLocaleString();
+      document.getElementById(`${prefix}-today-cost`).innerText = `$${(userObj.cost_today || 0).toFixed(4)}`;
+      document.getElementById(`${prefix}-model`).innerText = userObj.last_model || "-";
+    }
+
+    async function sendPing() {
+      const input = document.getElementById("ping-text");
+      const msg = input.value.trim();
+      if (!msg) return;
+      input.value = "";
+      try {
+        await fetch("/api/ping", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg })
+        });
+        fetchStatus();
+      } catch (e) {
+        alert("Failed to send ping: " + e);
+      }
+    }
+
+    async function testAlert() {
+      try {
+        await fetch("/api/test-alert", { method: "POST" });
+        fetchStatus();
+      } catch (e) {
+        alert("Failed test alert: " + e);
+      }
+    }
+
+    async function quitApp() {
+      if (confirm("Are you sure you want to stop Claude-Duo monitoring and exit?")) {
+        try {
+          await fetch("/api/shutdown", { method: "POST" });
+        } catch (e) {}
+        window.close();
+      }
+    }
+
+    function openSettings() {
+      fetch("/api/config").then(r => r.json()).then(cfg => {
+        currentConfig = cfg;
+        document.getElementById("cfg-user-name").value = cfg.user_name || "";
+        document.getElementById("cfg-peer-name").value = cfg.peer_name || "";
+        document.getElementById("cfg-topic").value = (cfg.channels_config?.ntfy?.topic) || "";
+        document.getElementById("settings-modal").style.display = "flex";
+      });
+    }
+
+    function closeSettings() {
+      document.getElementById("settings-modal").style.display = "none";
+    }
+
+    async function saveSettings() {
+      const userName = document.getElementById("cfg-user-name").value.trim();
+      const peerName = document.getElementById("cfg-peer-name").value.trim();
+      const topic = document.getElementById("cfg-topic").value.trim();
+
+      await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_name: userName, peer_name: peerName, topic: topic })
+      });
+      closeSettings();
+      fetchStatus();
+    }
+
+    function copyTopic() {
+      const topic = document.getElementById("cfg-topic").value;
+      navigator.clipboard.writeText(topic).then(() => alert("Pair topic copied to clipboard!"));
+    }
+
+    // Auto refresh every 3 seconds
+    setInterval(fetchStatus, 3000);
+    fetchStatus();
+  </script>
+</body>
+</html>
