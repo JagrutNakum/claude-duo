@@ -1,6 +1,6 @@
 {
   "name": "claude-duo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "> **Real-time usage attribution, 5-hour rolling quota monitoring, and cross-machine alerts for two people sharing a Claude account across the internet.**",
   "main": "src/main/index.js",
   "scripts": {
