@@ -31,7 +31,7 @@
         </div>
         <div class="header-status">
           <button class="btn btn-primary btn-sm update-ready-btn" id="update-btn" onclick="installUpdate()" style="display: none;" title="Restart to apply update">Restart to update</button>
-          <button class="btn btn-secondary btn-sm" id="nav-usage-btn" onclick="openUsage()" title="View exact token usage facts">Usage</button>
+          <button class="btn btn-secondary btn-sm" id="nav-usage-btn" onclick="openUsage()" title="View token usage and activity heatmap">Usage &amp; Heatmap</button>
           <div class="status-badge" id="relay-badge">
             <span class="dot" id="relay-dot" role="status"></span>
             <span id="relay-topic">Connecting…</span>
@@ -211,9 +211,6 @@
           <span>Dashboard</span>
         </button>
         <div class="settings-title">Token Usage Facts</div>
-        <div class="usage-header-meta" style="margin-left: auto;">
-          <span style="font-size: 11px; color: var(--text-muted);">Exact transcripts telemetry from ~/.claude-duo/usage.db</span>
-        </div>
       </div>
 
       <div class="usage-body" id="usage-body">
@@ -221,6 +218,30 @@
         <section class="usage-section">
           <div class="usage-section-title">This 5-hour window</div>
           <div class="usage-metrics-grid" id="usage-window-grid"></div>
+        </section>
+
+        <!-- Activity Heatmap Section -->
+        <section class="usage-section" id="heatmap-section">
+          <div class="usage-section-header">
+            <div class="usage-section-title">Activity Heatmap</div>
+            <div class="heatmap-header-controls">
+              <div class="heatmap-tabs" role="tablist">
+                <button type="button" class="heatmap-tab active" data-view="month" onclick="switchHeatmapTab('month')">30 Days</button>
+                <button type="button" class="heatmap-tab" data-view="week" onclick="switchHeatmapTab('week')">7 Days</button>
+                <button type="button" class="heatmap-tab" data-view="day" onclick="switchHeatmapTab('day')">Today (24h)</button>
+              </div>
+              <div class="heatmap-legend">
+                <span class="heatmap-legend-item"><span class="swatch you"></span><span id="heatmap-legend-you">You</span></span>
+                <span class="heatmap-legend-item"><span class="swatch peer"></span><span id="heatmap-legend-peer">Teammate</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="heatmap-card">
+            <div id="heatmap-content" class="heatmap-content"></div>
+            <div id="heatmap-hover-info" class="heatmap-hover-info">
+              <span id="heatmap-info-text">Hover over any day or hour to view usage details</span>
+            </div>
+          </div>
         </section>
 
         <!-- 2. Sessions in window -->

@@ -410,6 +410,348 @@ function closeUsage() {
   if (dash) dash.style.display = 'flex';
 }
 
+let currentHeatmapView = 'month';
+
+function switchHeatmapTab(view) {
+  currentHeatmapView = view;
+  const tabs = document.querySelectorAll('.heatmap-tab');
+  tabs.forEach(t => {
+    if (t.dataset.view === view) {
+      t.classList.add('active');
+    } else {
+      t.classList.remove('active');
+    }
+  });
+  if (currentState) {
+    renderHeatmap(currentState);
+  }
+}
+window.switchHeatmapTab = switchHeatmapTab;
+
+function formatLocalDate(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatFriendlyDate(dStr) {
+  try {
+    const parts = dStr.split('-');
+    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  } catch (e) {
+    return dStr;
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderHeatmap(state) {
+  if (!state) return;
+  const container = document.getElementById('heatmap-content');
+  if (!container) return;
+
+  const youName = state.local?.name || 'You';
+  const peerName = state.peer?.name || 'Teammate';
+  const legendYou = document.getElementById('heatmap-legend-you');
+  const legendPeer = document.getElementById('heatmap-legend-peer');
+  if (legendYou) legendYou.textContent = youName;
+  if (legendPeer) legendPeer.textContent = peerName;
+
+  const infoEl = document.getElementById('heatmap-info-text');
+  const defaultInfo = 'Hover over any day or hour to view usage details';
+  if (infoEl) infoEl.textContent = defaultInfo;
+
+  const hm = state.heatmap || {};
+  const localDaily = hm.local?.daily || [];
+  const peerDaily = hm.peer?.daily || [];
+  const localHourly = hm.local?.hourly || [];
+  const peerHourly = hm.peer?.hourly || [];
+
+  const localDailyMap = new Map();
+  for (const d of localDaily) localDailyMap.set(d.day, d);
+
+  const peerDailyMap = new Map();
+  for (const d of peerDaily) peerDailyMap.set(d.day, d);
+
+  container.replaceChildren();
+
+  if (currentHeatmapView === 'month') {
+    renderMonthHeatmap(container, localDailyMap, peerDailyMap, youName, peerName, infoEl, defaultInfo);
+  } else if (currentHeatmapView === 'week') {
+    renderWeekHeatmap(container, localDailyMap, peerDailyMap, youName, peerName, infoEl, defaultInfo);
+  } else if (currentHeatmapView === 'day') {
+    renderDayHeatmap(container, localHourly, peerHourly, youName, peerName, infoEl, defaultInfo);
+  }
+}
+
+function renderMonthHeatmap(container, localDailyMap, peerDailyMap, youName, peerName, infoEl, defaultInfo) {
+  const grid = document.createElement('div');
+  grid.className = 'heatmap-month-grid';
+  grid.onmouseleave = () => { if (infoEl) infoEl.textContent = defaultInfo; };
+
+  const now = new Date();
+  const todayStr = formatLocalDate(now);
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 3600 * 1000);
+    days.push(formatLocalDate(d));
+  }
+
+  for (const dStr of days) {
+    const loc = localDailyMap.get(dStr) || { turns: 0, tokens: 0, output: 0 };
+    const peer = peerDailyMap.get(dStr) || { turns: 0, tokens: 0, output: 0 };
+    const locTok = loc.tokens || 0;
+    const peerTok = peer.tokens || 0;
+    const totTok = locTok + peerTok;
+    const isToday = dStr === todayStr;
+
+    const cell = document.createElement('div');
+    cell.className = 'heatmap-month-cell' + (isToday ? ' is-today' : '');
+
+    const hdr = document.createElement('div');
+    hdr.className = 'heatmap-cell-header';
+
+    const dateLbl = document.createElement('span');
+    dateLbl.className = 'heatmap-cell-date';
+    const dateParts = dStr.split('-');
+    dateLbl.textContent = `${Number(dateParts[1])}/${Number(dateParts[2])}`;
+    hdr.appendChild(dateLbl);
+
+    if (isToday) {
+      const dot = document.createElement('span');
+      dot.className = 'heatmap-cell-today-dot';
+      dot.title = 'Today';
+      hdr.appendChild(dot);
+    }
+    cell.appendChild(hdr);
+
+    const bars = document.createElement('div');
+    bars.className = 'heatmap-cell-bars';
+    if (totTok > 0) {
+      const locPct = (locTok / totTok) * 100;
+      const peerPct = (peerTok / totTok) * 100;
+
+      if (locPct > 0) {
+        const bYou = document.createElement('div');
+        bYou.className = 'heatmap-cell-bar-you';
+        bYou.style.width = `${locPct.toFixed(1)}%`;
+        bars.appendChild(bYou);
+      }
+      if (peerPct > 0) {
+        const bPeer = document.createElement('div');
+        bPeer.className = 'heatmap-cell-bar-peer';
+        bPeer.style.width = `${peerPct.toFixed(1)}%`;
+        bars.appendChild(bPeer);
+      }
+    }
+    cell.appendChild(bars);
+
+    const tokEl = document.createElement('div');
+    tokEl.className = 'heatmap-cell-tokens';
+    tokEl.textContent = totTok > 0 ? formatTokens(totTok) : '—';
+    cell.appendChild(tokEl);
+
+    cell.onmouseenter = () => {
+      if (infoEl) {
+        infoEl.innerHTML = `<strong>${formatFriendlyDate(dStr)}${isToday ? ' (Today)' : ''}</strong> &nbsp;·&nbsp; ` +
+          `${escapeHtml(youName)}: <strong>${formatTokens(locTok)}</strong> (${loc.turns || 0} turns) &nbsp;·&nbsp; ` +
+          `${escapeHtml(peerName)}: <strong>${formatTokens(peerTok)}</strong> (${peer.turns || 0} turns) &nbsp;·&nbsp; ` +
+          `Combined: <strong>${formatTokens(totTok)}</strong>`;
+      }
+    };
+
+    grid.appendChild(cell);
+  }
+  container.appendChild(grid);
+}
+
+function renderWeekHeatmap(container, localDailyMap, peerDailyMap, youName, peerName, infoEl, defaultInfo) {
+  const grid = document.createElement('div');
+  grid.className = 'heatmap-week-grid';
+  grid.onmouseleave = () => { if (infoEl) infoEl.textContent = defaultInfo; };
+
+  const now = new Date();
+  const todayStr = formatLocalDate(now);
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 3600 * 1000);
+    days.push(formatLocalDate(d));
+  }
+
+  let maxTokens = 1;
+  for (const d of days) {
+    const loc = localDailyMap.get(d) || { tokens: 0 };
+    const peer = peerDailyMap.get(d) || { tokens: 0 };
+    const m = Math.max(loc.tokens || 0, peer.tokens || 0);
+    if (m > maxTokens) maxTokens = m;
+  }
+
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  for (const dStr of days) {
+    const loc = localDailyMap.get(dStr) || { turns: 0, tokens: 0, output: 0 };
+    const peer = peerDailyMap.get(dStr) || { turns: 0, tokens: 0, output: 0 };
+    const locTok = loc.tokens || 0;
+    const peerTok = peer.tokens || 0;
+    const totTok = locTok + peerTok;
+    const isToday = dStr === todayStr;
+
+    const dObj = new Date(dStr + 'T12:00:00');
+    const dayName = isToday ? 'Today' : dayNames[dObj.getDay()];
+
+    const col = document.createElement('div');
+    col.className = 'heatmap-week-col' + (isToday ? ' is-today' : '');
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'heatmap-week-day';
+    nameEl.textContent = dayName;
+    col.appendChild(nameEl);
+
+    const dateEl = document.createElement('div');
+    dateEl.className = 'heatmap-week-date';
+    const dateParts = dStr.split('-');
+    dateEl.textContent = `${Number(dateParts[1])}/${Number(dateParts[2])}`;
+    col.appendChild(dateEl);
+
+    const barsContainer = document.createElement('div');
+    barsContainer.className = 'heatmap-week-bars';
+
+    const wrapYou = document.createElement('div');
+    wrapYou.className = 'heatmap-week-bar-container';
+    const bYou = document.createElement('div');
+    bYou.className = 'heatmap-week-bar-you';
+    const youH = locTok > 0 ? Math.max(4, Math.round((locTok / maxTokens) * 100)) : 0;
+    bYou.style.height = `${youH}%`;
+    wrapYou.appendChild(bYou);
+    barsContainer.appendChild(wrapYou);
+
+    const wrapPeer = document.createElement('div');
+    wrapPeer.className = 'heatmap-week-bar-container';
+    const bPeer = document.createElement('div');
+    bPeer.className = 'heatmap-week-bar-peer';
+    const peerH = peerTok > 0 ? Math.max(4, Math.round((peerTok / maxTokens) * 100)) : 0;
+    bPeer.style.height = `${peerH}%`;
+    wrapPeer.appendChild(bPeer);
+    barsContainer.appendChild(wrapPeer);
+
+    col.appendChild(barsContainer);
+
+    const tokEl = document.createElement('div');
+    tokEl.className = 'heatmap-week-tokens';
+    tokEl.textContent = totTok > 0 ? formatTokens(totTok) : '0 tok';
+    col.appendChild(tokEl);
+
+    col.onmouseenter = () => {
+      if (infoEl) {
+        infoEl.innerHTML = `<strong>${formatFriendlyDate(dStr)}${isToday ? ' (Today)' : ''}</strong> &nbsp;·&nbsp; ` +
+          `${escapeHtml(youName)}: <strong>${formatTokens(locTok)}</strong> (${loc.turns || 0} turns) &nbsp;·&nbsp; ` +
+          `${escapeHtml(peerName)}: <strong>${formatTokens(peerTok)}</strong> (${peer.turns || 0} turns) &nbsp;·&nbsp; ` +
+          `Combined: <strong>${formatTokens(totTok)}</strong>`;
+      }
+    };
+
+    grid.appendChild(col);
+  }
+  container.appendChild(grid);
+}
+
+function renderDayHeatmap(container, localHourly, peerHourly, youName, peerName, infoEl, defaultInfo) {
+  const grid = document.createElement('div');
+  grid.className = 'heatmap-day-grid';
+  grid.onmouseleave = () => { if (infoEl) infoEl.textContent = defaultInfo; };
+
+  const now = new Date();
+  const todayStr = formatLocalDate(now);
+
+  const localHourMap = new Map();
+  for (const h of localHourly) {
+    if (h.slot && h.slot.startsWith(todayStr)) {
+      const hour = parseInt(h.hour || h.slot.slice(11, 13), 10);
+      localHourMap.set(hour, h);
+    }
+  }
+
+  const peerHourMap = new Map();
+  for (const h of peerHourly) {
+    if (h.slot && h.slot.startsWith(todayStr)) {
+      const hour = parseInt(h.hour || h.slot.slice(11, 13), 10);
+      peerHourMap.set(hour, h);
+    }
+  }
+
+  let maxHourTok = 1;
+  for (let hour = 0; hour < 24; hour++) {
+    const l = localHourMap.get(hour) || { tokens: 0 };
+    const p = peerHourMap.get(hour) || { tokens: 0 };
+    const tot = (l.tokens || 0) + (p.tokens || 0);
+    if (tot > maxHourTok) maxHourTok = tot;
+  }
+
+  const currentHour = now.getHours();
+
+  for (let hour = 0; hour < 24; hour++) {
+    const loc = localHourMap.get(hour) || { turns: 0, tokens: 0 };
+    const peer = peerHourMap.get(hour) || { turns: 0, tokens: 0 };
+    const locTok = loc.tokens || 0;
+    const peerTok = peer.tokens || 0;
+    const totTok = locTok + peerTok;
+
+    const slot = document.createElement('div');
+    slot.className = 'heatmap-hour-slot';
+
+    const barWrap = document.createElement('div');
+    barWrap.className = 'heatmap-hour-bar-wrap';
+
+    if (totTok > 0) {
+      const locH = Math.round((locTok / maxHourTok) * 100);
+      const peerH = Math.round((peerTok / maxHourTok) * 100);
+
+      if (peerH > 0) {
+        const bPeer = document.createElement('div');
+        bPeer.className = 'heatmap-hour-bar-peer';
+        bPeer.style.height = `${peerH}%`;
+        barWrap.appendChild(bPeer);
+      }
+      if (locH > 0) {
+        const bYou = document.createElement('div');
+        bYou.className = 'heatmap-hour-bar-you';
+        bYou.style.height = `${locH}%`;
+        barWrap.appendChild(bYou);
+      }
+    } else if (hour === currentHour) {
+      barWrap.style.background = 'rgba(217, 119, 54, 0.08)';
+    }
+    slot.appendChild(barWrap);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'heatmap-hour-label';
+    lbl.textContent = hour % 3 === 0 ? String(hour).padStart(2, '0') : '';
+    slot.appendChild(lbl);
+
+    slot.onmouseenter = () => {
+      if (infoEl) {
+        infoEl.innerHTML = `<strong>${String(hour).padStart(2, '0')}:00 - ${String(hour).padStart(2, '0')}:59 Today</strong> &nbsp;·&nbsp; ` +
+          `${escapeHtml(youName)}: <strong>${formatTokens(locTok)}</strong> (${loc.turns || 0} turns) &nbsp;·&nbsp; ` +
+          `${escapeHtml(peerName)}: <strong>${formatTokens(peerTok)}</strong> (${peer.turns || 0} turns) &nbsp;·&nbsp; ` +
+          `Combined: <strong>${formatTokens(totTok)}</strong>`;
+      }
+    };
+
+    grid.appendChild(slot);
+  }
+  container.appendChild(grid);
+}
+
 function renderUsageDetails(state) {
   if (!state) return;
 
@@ -454,6 +796,9 @@ function renderUsageDetails(state) {
       winGrid.appendChild(card);
     }
   }
+
+  // 1b. Activity Heatmap
+  renderHeatmap(state);
 
   // 2. Sessions
   const sessionsList = document.getElementById('usage-sessions-list');

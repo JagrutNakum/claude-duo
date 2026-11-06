@@ -77,10 +77,14 @@ let relayClient = new RelayClient({
   stateProvider: () => peerView(quotaEngine.getStateSummary())
 });
 
-// Sessions, titles and history stay on this PC; the peer only gets this window's totals.
+// Sessions, titles and history stay on this PC; the peer only gets numeric totals and heatmap activity.
 function peerView(s) {
-  const { sessions, byModel, periods, window, ...rest } = s;
-  return { ...rest, lastPing: lastSentPing };
+  const { sessions, byModel, periods, window, heatmap, ...rest } = s;
+  return {
+    ...rest,
+    lastPing: lastSentPing,
+    heatmap: heatmap && heatmap.local ? { daily: heatmap.local.daily, hourly: heatmap.local.hourly } : null
+  };
 }
 
 let statuslineReceiver = null;

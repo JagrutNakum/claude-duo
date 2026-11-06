@@ -129,6 +129,8 @@ class QuotaEngine {
 
     this.officialHistory = []; // recent readings, for the account pace
     this.peerWindow = null; // { resetsAt, q, tokens } reported by the peer
+    this.peerDaily = [];
+    this.peerHourly = [];
     this.db = null;
     this.factsCache = null;
   }
@@ -331,6 +333,21 @@ class QuotaEngine {
     if (pl.window && typeof pl.window.q === 'number') {
       this.peerWindow = { resetsAt: pl.window.resetsAt || null, q: pl.window.q, tokens: typeof pl.window.tokens === 'number' ? pl.window.tokens : null };
     }
+    if (peerState.heatmap) {
+      if (Array.isArray(peerState.heatmap.daily)) {
+        this.peerDaily = peerState.heatmap.daily;
+        if (this.db && this.peerUserName) {
+          try {
+            for (const d of this.peerDaily) {
+              this.db.upsertPeerDaily(this.peerUserName, d.day, d.turns, d.tokens, d.output);
+            }
+          } catch (e) {}
+        }
+      }
+      if (Array.isArray(peerState.heatmap.hourly)) {
+        this.peerHourly = peerState.heatmap.hourly;
+      }
+    }
 
     // The 5-hour limit is account-wide. Adopt the peer's reading when it is newer than ours,
     // so this machine stays current while only the peer is using Claude Code.
@@ -459,6 +476,10 @@ class QuotaEngine {
     const now = Date.now();
     const facts = this._facts(now);
     const usage = this._windowUsage(this._windowStart(now));
+    const thirtyDaysAgo = now - 30 * DAY_MS;
+    const thirtyDaysAgoStr = new Date(thirtyDaysAgo).toISOString().slice(0, 10);
+    const peerDailyFromDb = (this.db && this.peerUserName) ? this.db.peerDailyUsage(this.peerUserName, thirtyDaysAgoStr) : [];
+    const peerDailyList = peerDailyFromDb.length > 0 ? peerDailyFromDb : (this.peerDaily || []);
 
     return {
       fiveHourUsedPct,
@@ -497,6 +518,16 @@ class QuotaEngine {
       sessions: facts.sessions,
       byModel: facts.byModel,
       periods: facts.periods,
+      heatmap: {
+        local: {
+          daily: this.db ? this.db.dailyUsage(thirtyDaysAgo, now) : [],
+          hourly: this.db ? this.db.hourlyUsage(now - 24 * 3600 * 1000, now) : []
+        },
+        peer: {
+          daily: peerDailyList,
+          hourly: this.peerHourly || []
+        }
+      },
       peer: {
         name: this.peerUserName,
         active: this.peerActive,

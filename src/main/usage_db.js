@@ -37,6 +37,14 @@ CREATE TABLE IF NOT EXISTS files (
   offset INTEGER NOT NULL,
   size INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS peer_daily (
+  peer_name TEXT NOT NULL,
+  day TEXT NOT NULL,
+  turns INTEGER NOT NULL DEFAULT 0,
+  tokens INTEGER NOT NULL DEFAULT 0,
+  output INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (peer_name, day)
+);
 `;
 
 const SUMS = `COUNT(*) AS turns, COALESCE(SUM(input),0) AS input, COALESCE(SUM(output),0) AS output,
@@ -71,7 +79,21 @@ class UsageDb {
       readingsSince: s('SELECT ts, pct_5h AS pct, resets_at AS resetsAt FROM readings WHERE ts > ? ORDER BY ts'),
       turnsSince: s(`SELECT id, session_id AS sessionId, ts AS timestamp, model, effort, thinking, speed, input AS inputTokens,
         output AS outputTokens, thinking_tokens AS thinkingTokens, cache_write AS cacheWriteTokens, cache_read AS cacheReadTokens
-        FROM turns WHERE ts > ? ORDER BY ts`)
+        FROM turns WHERE ts > ? ORDER BY ts`),
+      dailyUsage: s(`SELECT strftime('%Y-%m-%d', ts / 1000, 'unixepoch', 'localtime') AS day,
+        COUNT(*) AS turns, COALESCE(SUM(output), 0) AS output,
+        COALESCE(SUM(input + output + cache_write), 0) AS tokens
+        FROM turns WHERE ts > ? AND ts <= ?
+        GROUP BY day ORDER BY day ASC`),
+      hourlyUsage: s(`SELECT strftime('%Y-%m-%d %H:00', ts / 1000, 'unixepoch', 'localtime') AS slot,
+        strftime('%H', ts / 1000, 'unixepoch', 'localtime') AS hour,
+        COUNT(*) AS turns, COALESCE(SUM(output), 0) AS output,
+        COALESCE(SUM(input + output + cache_write), 0) AS tokens
+        FROM turns WHERE ts > ? AND ts <= ?
+        GROUP BY slot ORDER BY slot ASC`),
+      upsertPeerDaily: s(`INSERT INTO peer_daily (peer_name, day, turns, tokens, output) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(peer_name, day) DO UPDATE SET turns = excluded.turns, tokens = excluded.tokens, output = excluded.output`),
+      peerDailyUsage: s(`SELECT day, turns, tokens, output FROM peer_daily WHERE peer_name = ? AND day >= ? ORDER BY day ASC`)
     };
   }
 
@@ -116,6 +138,23 @@ class UsageDb {
 
   readingsSince(ts) {
     return this.q.readingsSince.all(ts).map(r => ({ ...r }));
+  }
+
+  dailyUsage(from, to) {
+    return this.q.dailyUsage.all(from, to).map(r => ({ ...r }));
+  }
+
+  hourlyUsage(from, to) {
+    return this.q.hourlyUsage.all(from, to).map(r => ({ ...r }));
+  }
+
+  upsertPeerDaily(peerName, day, turns, tokens, output) {
+    if (peerName && day) this.q.upsertPeerDaily.run(peerName, day, turns || 0, tokens || 0, output || 0);
+  }
+
+  peerDailyUsage(peerName, fromDay) {
+    if (!peerName) return [];
+    return this.q.peerDailyUsage.all(peerName, fromDay || '').map(r => ({ ...r }));
   }
 
   transaction(fn) {

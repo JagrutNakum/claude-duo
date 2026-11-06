@@ -1463,6 +1463,326 @@ body {
   font-size: 11px;
 }
 
+/* ---- Heatmap & Usage Distribution ---- */
+
+.usage-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heatmap-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.heatmap-tabs {
+  display: inline-flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-line);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.heatmap-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-interface);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.16s var(--ease-smooth);
+}
+
+.heatmap-tab:hover {
+  color: var(--text-primary);
+}
+
+.heatmap-tab.active {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.heatmap-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.heatmap-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heatmap-legend-item .swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 0;
+}
+
+.heatmap-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.heatmap-content {
+  width: 100%;
+}
+
+.heatmap-hover-info {
+  display: flex;
+  align-items: center;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  min-height: 20px;
+}
+
+.heatmap-hover-info strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Month Grid View (30 Days) */
+.heatmap-month-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 5px;
+}
+
+.heatmap-month-cell {
+  background: var(--bg-page);
+  border: 1px solid var(--border-line);
+  border-radius: 5px;
+  padding: 5px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease-smooth), background 0.15s var(--ease-smooth);
+  position: relative;
+}
+
+.heatmap-month-cell:hover, .heatmap-month-cell.hovered {
+  border-color: var(--border-hover);
+  background: var(--bg-raised);
+}
+
+.heatmap-month-cell.is-today {
+  border-color: var(--border-local);
+}
+
+.heatmap-cell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+}
+
+.heatmap-cell-date {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.heatmap-cell-today-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.heatmap-cell-bars {
+  display: flex;
+  height: 5px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
+  overflow: hidden;
+  gap: 1px;
+}
+
+.heatmap-cell-bar-you {
+  background: var(--accent);
+  height: 100%;
+  transition: width 0.2s var(--ease-smooth);
+}
+
+.heatmap-cell-bar-peer {
+  background: var(--text-muted);
+  height: 100%;
+  transition: width 0.2s var(--ease-smooth);
+}
+
+.heatmap-cell-tokens {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Week View (7 Days) */
+.heatmap-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  min-height: 110px;
+}
+
+.heatmap-week-col {
+  background: var(--bg-page);
+  border: 1px solid var(--border-line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-smooth);
+}
+
+.heatmap-week-col:hover, .heatmap-week-col.hovered {
+  border-color: var(--border-hover);
+  background: var(--bg-raised);
+}
+
+.heatmap-week-col.is-today {
+  border-color: var(--border-local);
+}
+
+.heatmap-week-day {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.heatmap-week-date {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.heatmap-week-bars {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+  min-height: 52px;
+  padding: 2px 0;
+}
+
+.heatmap-week-bar-container {
+  width: 9px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.heatmap-week-bar-you {
+  width: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  min-height: 2px;
+  transition: height 0.25s var(--ease-smooth);
+}
+
+.heatmap-week-bar-peer {
+  width: 100%;
+  background: var(--text-muted);
+  border-radius: 2px;
+  min-height: 2px;
+  transition: height 0.25s var(--ease-smooth);
+}
+
+.heatmap-week-tokens {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Day View (24 Hours) */
+.heatmap-day-grid {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 3px;
+  min-height: 54px;
+  align-items: end;
+}
+
+.heatmap-hour-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.heatmap-hour-bar-wrap {
+  width: 100%;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid transparent;
+  transition: border-color 0.15s var(--ease-smooth);
+}
+
+.heatmap-hour-slot:hover .heatmap-hour-bar-wrap,
+.heatmap-hour-slot.hovered .heatmap-hour-bar-wrap {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.heatmap-hour-bar-you {
+  width: 100%;
+  background: var(--accent);
+}
+
+.heatmap-hour-bar-peer {
+  width: 100%;
+  background: var(--text-muted);
+}
+
+.heatmap-hour-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
 @media (max-height: 520px) {
   body {
     padding: 6px 14px;
