@@ -7,6 +7,8 @@ description: Autonomous release agent for Claude-Duo. Handles pre-flight checks,
 
 Autonomous agent runbook for executing releases of Claude-Duo to GitHub.
 
+> **STRICT RULE:** NEVER add comments, release notes, or descriptions to software releases or git tags. Keep release descriptions completely empty.
+
 ## Workflow
 
 ### 1. Pre-flight Verification
