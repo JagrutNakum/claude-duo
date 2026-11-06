@@ -273,7 +273,7 @@ function buildTrayMenu() {
       click: () => showMainWindow()
     },
     {
-      label: 'Settingsâ€¦',
+      label: 'Settings...',
       click: () => {
         showMainWindow();
         if (mainWindow) mainWindow.webContents.send('open_settings');
